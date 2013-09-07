@@ -31,7 +31,7 @@ let g:loaded_crunch = 1
 "=============================================================================
 
 command! -nargs=* Crunch call crunch#Crunch('<args>')
-command! -nargs=* -range CrunchLine <line1>,<line2>call crunch#CrunchLine('.')
+command! -nargs=* -range CrunchLine <line1>,<line2>call crunch#CrunchLine()
 command! CrunchBlock call crunch#CrunchBlock()
 
 "=============================================================================

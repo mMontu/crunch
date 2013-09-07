@@ -84,17 +84,19 @@ endfunction
 "crunch#CrunchLine                                                         {{{
 " The Top Level Function that determines program flow
 "=============================================================================
-function! crunch#CrunchLine(line) 
-    let OriginalExpression = getline(a:line)
-    if s:ValidLine(OriginalExpression) == 0 | return | endif
-    let OriginalExpression = s:RemoveOldResult(OriginalExpression)
-    let expression = s:ReplaceTag(OriginalExpression)
-    call s:PrintDebugMsg('['.OriginalExpression.'] is the OriginalExpression')
-    let expression = s:Core(expression)
-    let resultStr = s:EvaluateExpression(expression)
-    call setline(a:line, OriginalExpression.' = '.resultStr)
-    call s:PrintDebugMsg('['. resultStr . '] is the result' )
-    return resultStr
+function! crunch#CrunchLine() range
+    for line in range(a:firstline, a:lastline) 
+        let OriginalExpression = getline(line)
+        if s:ValidLine(OriginalExpression) == 0 | continue | endif
+        let OriginalExpression = s:RemoveOldResult(OriginalExpression)
+        let expression = s:ReplaceTag(OriginalExpression)
+        call s:PrintDebugMsg('['.OriginalExpression.
+                    \ '] is the OriginalExpression')
+        let expression = s:Core(expression)
+        let resultStr = s:EvaluateExpression(expression)
+        call setline(line, OriginalExpression.' = '.resultStr)
+        call s:PrintDebugMsg('['. resultStr . '] is the result' )
+    endfor
 endfunction
 
 "==========================================================================}}}
@@ -117,9 +119,7 @@ function! crunch#CrunchBlock() range
         endwhile
         call s:PrintDebugMsg("new range: " . top . ", " . bot) 
     endif
-    for line in range(top, bot)
-        call crunch#CrunchLine(line)
-    endfor
+    exe top.','.bot.'call crunch#CrunchLine()'
 endfunction
 
 "==========================================================================}}}
@@ -161,7 +161,7 @@ function! s:ValidLine(expression)
     endif 
 
     " checks for lines that don't need evaluation
-    if a:expression =~ '\v\C^\s*var\s+\a+\s*\=\s*[0-9.]+$'
+    if a:expression =~ '\v^\s*(\a+\s*)+\=\s*[0-9.]+$'
         return 0 
     endif 
 
