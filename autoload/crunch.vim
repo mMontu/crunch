@@ -26,7 +26,9 @@ let s:numPat = '\v[-+]?%(\.\d+|\d+%([.]\d+)?%([eE][+-]?\d+)?)'
 let s:validVariable = '\v[a-zA-Z_]+[a-zA-Z0-9_]*'
 let s:ErrorTag = 'Crunch error: '
 let s:isExclusive = 0
-
+let s:SpreadsheetTag = '\v\=\s*CrunchSS'
+let s:SpreadsheetSkipParam = '#'
+let s:SpreadsheetErrorTag = 'Crunch spreadsheet error'
 
 
 " mutually exclusive
@@ -106,6 +108,7 @@ function! crunch#Main(args) range
     execute a:firstline.','.a:lastline.'call crunch#EvalLine()'
     call crunch#debug#PrintMsg('Exclusive cleared')
     let s:isExclusive = 0
+    call s:DisableSSheet()
 endfunction
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""}}}2
@@ -114,6 +117,10 @@ endfunction
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 function! crunch#EvalLine()
     let origExpr = s:CrunchInit()
+    if s:EvalSSheet(origExpr)
+        " skip if already evaluated
+        return
+    endif
     try
         if s:ValidLine(origExpr) == 0 | return | endif
         let origExpr = s:RemoveOldResult(origExpr)
@@ -732,6 +739,85 @@ function! s:VimEval(expr)
 endfunction
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""}}}2
+" s:EvalSSheet()                                                  {{{2
+" Handles spreadsheet evaluation
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+function! s:EvalSSheet(origExpr)
+    if a:origExpr =~ '\v^\s*'.g:crunch_calc_comment
+        " skip Crunch commented lines
+        return 1
+    endif
+
+    if exists('s:sheet')
+        if a:origExpr =~ '\v^\s*$'
+            " stop on empty lines
+            call s:DisableSSheet()
+        else
+            let value = split(a:origExpr)
+            if exists('s:sheet.errorCondition')
+                " insert error message on all lines as the error may happen on
+                " lines that are not visible 
+                let resultStr =  s:SpreadsheetErrorTag
+            elseif len(value) < len (s:sheet.param)
+                " stop on the first error
+                let resultStr =  s:SpreadsheetErrorTag . ': missing arguments'
+                let s:sheet['errorCondition'] = 1
+            else
+                " replace each param in the formula by the respective value
+                let expr = s:sheet.form
+                for i in range(len(s:sheet.param))
+                    if s:sheet.param[i] != s:SpreadsheetSkipParam
+                        let expr = substitute(expr, '\V' . s:sheet.param[i] .
+                                    \ '\>', '(' .  value[i] . ')', '')
+                    endif
+                endfor
+                " evaluate final expression
+                let expr = s:FixMultiplication(expr)
+                let expr = s:IntegerToFloat(expr)
+                let expr = s:AddLeadingZero(expr)
+                try
+                    let resultStr = s:VimEval(expr)
+                catch /^Vim\%((\a\+)\)\=:E121/
+                    let resultStr =  s:SpreadsheetErrorTag . ': ' . v:exception
+                    let s:sheet['errorCondition'] = 1
+                endtry
+            endif
+            
+            " write result
+            let resultStr = substitute(a:origExpr, s:sheet.resRegex,
+                        \ s:sheet.resSpaces . resultStr, '')
+            call setline('.', s:prefix. resultStr . s:suffix)
+            " call setline('.', getline('.') .' Crunch spreadsheet!')
+        endif
+
+        return 1
+    elseif a:origExpr =~# s:SpreadsheetTag
+        " spreadsheet initialization
+        let s:sheet = {}
+        let s:sheet['param'] = split(matchstr(a:origExpr, '\v^.*\ze' .
+                    \ s:SpreadsheetTag))
+        let s:sheet['resSpaces'] = matchstr(a:origExpr, '\v\s*\ze' . 
+                    \ s:SpreadsheetTag)
+        let s:sheet['form'] = strpart(a:origExpr, 
+                    \ matchend(a:origExpr,s:SpreadsheetTag))
+        let s:sheet['resRegex'] = '\v^' . 
+                    \ repeat('\s*\S+', len(s:sheet.param)) .  '\zs\s*\S*\ze'
+        " echo s:sheet
+        return 1
+    endif
+    return 0
+endfunction
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""}}}2
+" s:s:DisableSSheet                                                  {{{2
+" Disable spreadsheet evaluation
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""}}}2
+function! s:DisableSSheet()
+    if exists('s:sheet')
+        unlet s:sheet
+    endif
+endfunction
+
 "}}}
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

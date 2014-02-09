@@ -1,0 +1,51 @@
+" regular evaluation
+x = 2
+y = 20
+z = 30
+y - 2x + z = 46
+
+#        x     y      z    = CrunchSS y - 2x + z
+label    1     20    30    48    
+label    2     20    30    46   
+label    3     20    30    44   endLabel
+" ignore commented lines
+label    4     20    30    42   endLabel
+" ignore commented lines
+label    5     20    30    40   endLabel
+
+" stops on empty lines and return to regular mode
+x1 = 3
+x2 = 4
+x3 = x1 + x2 = 7 
+
+" table using '\t' as separator - ensure that result spacing before result is
+" copied from formula
+#        x     y      z		= CrunchSS y - 2x + z
+label    1     20    30		48    
+label    2     20    30		46   
+label    3     20    30		44   endLabel
+" ignore commented lines
+label    4     20    30		42   endLabel
+" ignore commented lines
+label    5     20    30		40   endLabel
+
+" error message for insuficient number of parameters
+#        x     y      z    = CrunchSS y - 2x + z
+label    1           30    Crunch spreadsheet error: missing arguments    
+label    2     20    30    Crunch spreadsheet error   
+label    3     20    30    Crunch spreadsheet error   endLabel
+" ignore commented lines
+label    4     20    30    Crunch spreadsheet error   endLabel
+" ignore commented lines
+label    5     20    30    Crunch spreadsheet error   endLabel
+
+" error message for evaluation error
+#        x     y      z    = CrunchSS y - 2x + z
+label    1     20    30    48    
+label    2     20    30    46   
+label    3     20    30    44   endLabel
+" ignore commented lines
+label    4           30 res    Crunch spreadsheet error: Vim(let):E121: Undefined variable: res
+" ignore commented lines
+label    5     20    30    Crunch spreadsheet error   endLabel
+
